@@ -10,11 +10,6 @@ interface Props {
 export default function SimulationGrid({ gameState }: Props) {
   const { agents, grid_width, grid_height } = gameState;
 
-  // Calculate cell size based on a fixed container size (e.g., 800px)
-  const containerSize = 800;
-  const cellWidth = containerSize / grid_width;
-  const cellHeight = containerSize / grid_height;
-
   // Helper to determine the correct image based on the agent's state
   const getAgentImage = (agent: Agent) => {
     switch (agent.type) {
@@ -54,25 +49,31 @@ export default function SimulationGrid({ gameState }: Props) {
   };
 
   return (
-    <div 
-      className="relative bg-gray-100 border-2 border-gray-800 mx-auto"
-      style={{ width: containerSize, height: containerSize }}
-    >
+    // w-full makes it fluid, max-w-4xl caps the size so it doesn't get ridiculously huge, aspect-square keeps it a perfect box
+    <div className="relative w-full min-w-[280px] max-w-4xl aspect-square bg-gray-100 border-2 border-gray-800 mx-auto overflow-hidden shadow-inner">
       {agents.map((agent) => {
         const imgSrc = getAgentImage(agent);
         if (!imgSrc) return null;
 
+        // Calculate size and position as percentages
+        const widthPct = (1 / grid_width) * 100;
+        const heightPct = (1 / grid_height) * 100;
+        
+        const leftPct = (agent.x / grid_width) * 100;
+        
+        // Mesa's Y origin (0,0) is bottom-left, but CSS origin is top-left.
+        // We subtract from grid_height to flip the Y-axis so the floorplan renders correctly.
+        const topPct = ((grid_height - 1 - agent.y) / grid_height) * 100;
+
         return (
           <div
             key={agent.id}
-            className="absolute"
+            className="absolute transition-all duration-300 ease-linear"
             style={{
-              left: agent.x * cellWidth,
-              // Mesa often treats (0,0) as bottom-left, Next.js is top-left.
-              // If your layout looks upside down, change this to: (grid_height - 1 - agent.y) * cellHeight
-              top: agent.y * cellHeight, 
-              width: cellWidth,
-              height: cellHeight,
+              left: `${leftPct}%`,
+              top: `${topPct}%`,
+              width: `${widthPct}%`,
+              height: `${heightPct}%`,
               zIndex: getLayer(agent.type),
             }}
           >
@@ -80,7 +81,6 @@ export default function SimulationGrid({ gameState }: Props) {
               src={imgSrc} 
               alt={agent.type} 
               fill 
-              sizes={`${cellWidth}px`}
               className="object-contain"
               unoptimized // Bypasses Next.js image optimization for purely local rapid renders
             />

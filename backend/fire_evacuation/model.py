@@ -264,17 +264,24 @@ class FireEvacuation(Model):
 
     # Starts a fire at a random piece of furniture with file_probability chance
     def start_fire(self):
-        rand = np.random.random()
-        if rand < self.fire_probability:
-            fire_furniture: Furniture = np.random.choice(list(self.furniture.values()))
-            pos = fire_furniture.pos
+            rand = np.random.random()
+            if rand < self.fire_probability:
+                # NEW: Check if there is actually furniture in the room
+                if len(self.furniture) > 0:
+                    fire_furniture: Furniture = np.random.choice(list(self.furniture.values()))
+                    pos = fire_furniture.pos
 
-            fire = Fire(pos, self)
-            self.grid.place_agent(fire, pos)
-            self.schedule.add(fire)
+                    fire = Fire(pos, self)
+                    self.grid.place_agent(fire, pos)
+                    self.schedule.add(fire)
 
-            self.fire_started = True
-            print(f"Fire started at position {pos}")
+                    self.fire_started = True
+                    print(f"Fire started at position {pos}")
+                else:
+                    # NEW: If no furniture exists, safely abort starting a fire
+                    print("Warning: No furniture found in this floorplan. Fire cannot start.")
+                    # Set fire_started to True so it doesn't keep attempting to start a fire every step
+                    self.fire_started = True
 
     def step(self):
         """
