@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface Props {
   onInit: (params: any) => void;
@@ -10,7 +10,8 @@ interface Props {
 }
 
 export default function Controls({ onInit, isPlaying, onTogglePlay, onStep }: Props) {
-  // Matching the default values from your Mesa server.py setup
+  const [floorplans, setFloorplans] = useState<string[]>([]);
+  
   const [params, setParams] = useState({
     floor_plan_file: "floorplan_testing.txt",
     human_count: 10,
@@ -21,11 +22,34 @@ export default function Controls({ onInit, isPlaying, onTogglePlay, onStep }: Pr
     save_plots: false,
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
+  // Fetch available floorplans from the Python API on mount
+  useEffect(() => {
+    async function fetchFloorplans() {
+      try {
+        const res = await fetch("http://localhost:8000/api/floorplans");
+        const data = await res.json();
+        if (data.floorplans && data.floorplans.length > 0) {
+          setFloorplans(data.floorplans);
+          // Set the default selected floorplan to the first one in the list
+          setParams(prev => ({ ...prev, floor_plan_file: data.floorplans[0] }));
+        }
+      } catch (error) {
+        console.error("Failed to fetch floorplans:", error);
+      }
+    }
+    fetchFloorplans();
+  }, []);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    
+    // Type narrowing for checkboxes
+    const isCheckbox = type === "checkbox";
+    const checked = isCheckbox ? (e.target as HTMLInputElement).checked : undefined;
+
     setParams((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : Number(value),
+      [name]: isCheckbox ? checked : (name === "floor_plan_file" ? value : Number(value)),
     }));
   };
 
@@ -33,6 +57,25 @@ export default function Controls({ onInit, isPlaying, onTogglePlay, onStep }: Pr
     <div className="bg-white p-6 rounded-lg shadow-md w-full max-w-sm flex flex-col gap-4">
       <h2 className="text-xl font-bold text-gray-800 border-b pb-2">Simulation Parameters</h2>
       
+      {/* Dynamic Dropdown for Floorplans */}
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-medium text-gray-700">Floorplan</label>
+        <select 
+          name="floor_plan_file" 
+          value={params.floor_plan_file} 
+          onChange={handleChange}
+          className="w-full border border-gray-300 rounded p-2 bg-gray-50 text-sm focus:ring-blue-500 focus:border-blue-500"
+        >
+          {floorplans.length === 0 ? (
+            <option>Loading...</option>
+          ) : (
+            floorplans.map((plan) => (
+              <option key={plan} value={plan}>{plan}</option>
+            ))
+          )}
+        </select>
+      </div>
+
       <div className="flex flex-col gap-1">
         <label className="text-sm font-medium text-gray-700">
           Number Of Human Agents: {params.human_count}
@@ -70,22 +113,22 @@ export default function Controls({ onInit, isPlaying, onTogglePlay, onStep }: Pr
         <input 
           type="checkbox" name="random_spawn" id="random_spawn"
           checked={params.random_spawn} onChange={handleChange}
-          className="w-4 h-4"
+          className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
         />
-        <label htmlFor="random_spawn" className="text-sm text-gray-700">Spawn Agents at Random Locations</label>
+        <label htmlFor="random_spawn" className="text-sm text-gray-700">Random Locations</label>
       </div>
 
       <div className="flex items-center gap-2">
         <input 
           type="checkbox" name="visualise_vision" id="visualise_vision"
           checked={params.visualise_vision} onChange={handleChange}
-          className="w-4 h-4"
+          className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
         />
         <label htmlFor="visualise_vision" className="text-sm text-gray-700">Show Agent Vision</label>
       </div>
 
       {/* Action Buttons */}
-      <div className="flex flex-col gap-2 mt-4 pt-4 border-t">
+      <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-gray-200">
         <button 
           onClick={() => onInit(params)}
           className="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded hover:bg-blue-700 transition-colors"
@@ -102,7 +145,7 @@ export default function Controls({ onInit, isPlaying, onTogglePlay, onStep }: Pr
           </button>
           <button 
             onClick={onTogglePlay}
-            className={`flex-1 px-4 py-2 text-white font-semibold rounded transition-colors ${isPlaying ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}
+            className={`flex-1 px-4 py-2 text-white font-semibold rounded transition-colors ${isPlaying ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
           >
             {isPlaying ? "Pause" : "Play"}
           </button>

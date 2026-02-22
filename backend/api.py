@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
+import os
 
 # Import your existing Mesa model and agents
 from fire_evacuation.model import FireEvacuation
@@ -78,9 +79,12 @@ def get_grid_state():
         "normal": sim_model.count_human_mobility(sim_model, Human.Mobility.NORMAL),
         "panic": sim_model.count_human_mobility(sim_model, Human.Mobility.PANIC),
         "incapacitated": sim_model.count_human_mobility(sim_model, Human.Mobility.INCAPACITATED),
+        "verbal_collaboration": sim_model.count_human_collaboration(sim_model, Human.Action.VERBAL_SUPPORT),
+        "physical_collaboration": sim_model.count_human_collaboration(sim_model, Human.Action.PHYSICAL_SUPPORT),
+        "morale_collaboration": sim_model.count_human_collaboration(sim_model, Human.Action.MORALE_SUPPORT),
     }
     
-    return {"agents": agents_data, "stats": stats, "running": sim_model.running}
+    return {"agents": agents_data, "stats": stats, "running": sim_model.running,"fire_started": getattr(sim_model, "fire_started", False)}
 
 @app.get("/api/state")
 def get_state():
@@ -91,6 +95,19 @@ def step_model():
     if sim_model and sim_model.running:
         sim_model.step()
     return get_grid_state()
+
+@app.get("/api/floorplans")
+def get_floorplans():
+    """Returns a list of available floorplan .txt files."""
+    floorplan_dir = "fire_evacuation/floorplans"
+    
+    # Ensure the directory exists to prevent errors
+    if not os.path.exists(floorplan_dir):
+        return {"floorplans": []}
+        
+    # List all .txt files in the directory
+    files = [f for f in os.listdir(floorplan_dir) if f.endswith('.txt')]
+    return {"floorplans": files}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
