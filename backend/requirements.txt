@@ -11,9 +11,3 @@ uvicorn
 uvicorn[standard]
 pydantic
 websockets
-
-# venv mini_project
-# source mini_project/bin/activate
-# always run the api with the command below to ensure the correct environment is used
-# python3.10 api.py
-#python3.10 -m pip install fastapi
