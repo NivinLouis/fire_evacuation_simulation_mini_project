@@ -1,7 +1,9 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { SimulationState, StatDataPoint } from "../types";
 
-const WS_URL = "ws://localhost:8000/ws";
+// Replace the hardcoded WS_URL and API_BASE_URL:
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000/ws";
 
 export function useSimulation() {
   const [gameState, setGameState] = useState<SimulationState>({

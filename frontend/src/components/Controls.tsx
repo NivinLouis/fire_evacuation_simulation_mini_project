@@ -26,7 +26,8 @@ export default function Controls({ onInit, isPlaying, onTogglePlay, onStep }: Pr
   useEffect(() => {
     async function fetchFloorplans() {
       try {
-        const res = await fetch("http://localhost:8000/api/floorplans");
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+        const res = await fetch(`${API_BASE_URL}/floorplans`);
         const data = await res.json();
         if (data.floorplans && data.floorplans.length > 0) {
           setFloorplans(data.floorplans);
