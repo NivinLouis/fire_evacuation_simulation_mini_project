@@ -1,10 +1,10 @@
 from typing import Union
 from typing_extensions import Self
 from mesa.space import Coordinate
-import networkx as nx
+import networkx as nx #pathfinding library, used for pathfinding to exits and such
 import numpy as np
 from enum import IntEnum
-from mesa import Agent
+from mesa import Agent #ABM library, used for creating agents and placing them on the grid
 from copy import deepcopy
 
 from fire_evacuation.utils import get_random_id

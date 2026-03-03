@@ -40,6 +40,7 @@ class FireEvacuation(Model):
     ):
         # Load floorplan
         # floorplan = np.genfromtxt(path.join("fire_evacuation/floorplans/", floor_plan_file))
+        #super().__init__()
         with open(os.path.join("fire_evacuation/floorplans/", floor_plan_file), "rt") as f:
             floorplan = np.matrix([line.strip().split() for line in f.readlines()])
 

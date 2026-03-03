@@ -1,16 +1,15 @@
-from fastapi import FastAPI
+import os
+import asyncio
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
-import os
 
-# Import your existing Mesa model and agents
 from fire_evacuation.model import FireEvacuation
 from fire_evacuation.agent import Human
 
 app = FastAPI()
 
-# Enable CORS so your local Next.js app (usually localhost:3000) can communicate with it
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 
@@ -18,43 +17,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# We'll store the active simulation in a global variable for now
 sim_model = None
-
-# Define the expected payload for initializing the model
-class InitParams(BaseModel):
-    floor_plan_file: str = "floorplan_testing.txt"
-    human_count: int = 10
-    collaboration_percentage: float = 50.0
-    fire_probability: float = 0.1
-    visualise_vision: bool = False
-    random_spawn: bool = True
-    save_plots: bool = False
-
-@app.post("/api/init")
-def init_model(params: InitParams):
-    global sim_model
-    sim_model = FireEvacuation(
-        floor_plan_file=params.floor_plan_file,
-        human_count=params.human_count,
-        collaboration_percentage=params.collaboration_percentage,
-        fire_probability=params.fire_probability,
-        visualise_vision=params.visualise_vision,
-        random_spawn=params.random_spawn,
-        save_plots=params.save_plots
-    )
-    return {
-        "status": "initialized", 
-        "grid_width": sim_model.grid.width, 
-        "grid_height": sim_model.grid.height
-    }
 
 def get_grid_state():
     if not sim_model:
         return {"error": "Model not initialized"}
     
     agents_data = []
-    # Iterate through the grid to get all agent positions
     for agents, x, y in sim_model.grid.coord_iter():
         for agent in agents:
             agent_info = {
@@ -63,15 +32,12 @@ def get_grid_state():
                 "y": y,
                 "type": agent.__class__.__name__
             }
-            
-            # Extract specific states for visual changes (like panicked vs incapacitated)
             if isinstance(agent, Human):
                 agent_info["mobility"] = agent.get_mobility()
                 agent_info["is_carrying"] = agent.is_carrying()
             
             agents_data.append(agent_info)
             
-    # Pull current statistics for your frontend charts
     stats = {
         "alive": sim_model.count_human_status(sim_model, Human.Status.ALIVE),
         "dead": sim_model.count_human_status(sim_model, Human.Status.DEAD),
@@ -84,30 +50,76 @@ def get_grid_state():
         "morale_collaboration": sim_model.count_human_collaboration(sim_model, Human.Action.MORALE_SUPPORT),
     }
     
-    return {"agents": agents_data, "stats": stats, "running": sim_model.running,"fire_started": getattr(sim_model, "fire_started", False)}
-
-@app.get("/api/state")
-def get_state():
-    return get_grid_state()
-
-@app.get("/api/step")
-def step_model():
-    if sim_model and sim_model.running:
-        sim_model.step()
-    return get_grid_state()
+    return {
+        "step": sim_model.schedule.steps, # NEW: Track time
+        "agents": agents_data, 
+        "stats": stats, 
+        "running": sim_model.running,
+        "fire_started": getattr(sim_model, "fire_started", False)
+    }
 
 @app.get("/api/floorplans")
 def get_floorplans():
-    """Returns a list of available floorplan .txt files."""
     floorplan_dir = "fire_evacuation/floorplans"
-    
-    # Ensure the directory exists to prevent errors
     if not os.path.exists(floorplan_dir):
         return {"floorplans": []}
-        
-    # List all .txt files in the directory
     files = [f for f in os.listdir(floorplan_dir) if f.endswith('.txt')]
     return {"floorplans": files}
+
+
+# --- NEW: WEBSOCKET ENDPOINT ---
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    global sim_model
+    is_playing = False
+    
+    # Background task to run the simulation loop automatically
+    async def simulation_loop():
+        nonlocal is_playing
+        while True:
+            if is_playing and sim_model and sim_model.running:
+                sim_model.step()
+                await websocket.send_json(get_grid_state())
+                await asyncio.sleep(0.1)  # 10 Steps per second (Adjust for speed)
+            else:
+                await asyncio.sleep(0.1)
+
+    loop_task = asyncio.create_task(simulation_loop())
+
+    try:
+        while True:
+            # Wait for commands from the Next.js frontend
+            data = await websocket.receive_json()
+            command = data.get("command")
+            
+            if command == "init":
+                params = data.get("params", {})
+                sim_model = FireEvacuation(
+                    floor_plan_file=params.get("floor_plan_file", "floorplan_testing.txt"),
+                    human_count=params.get("human_count", 10),
+                    collaboration_percentage=params.get("collaboration_percentage", 50.0),
+                    fire_probability=params.get("fire_probability", 0.1),
+                    visualise_vision=params.get("visualise_vision", False),
+                    random_spawn=params.get("random_spawn", True),
+                    save_plots=params.get("save_plots", False)
+                )
+                is_playing = False
+                await websocket.send_json(get_grid_state())
+                
+            elif command == "step":
+                if sim_model and sim_model.running:
+                    sim_model.step()
+                    await websocket.send_json(get_grid_state())
+                    
+            elif command == "play":
+                is_playing = True
+                
+            elif command == "pause":
+                is_playing = False
+                
+    except WebSocketDisconnect:
+        loop_task.cancel() # Stop the loop if user closes the browser
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

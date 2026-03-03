@@ -1,96 +1,79 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { SimulationState, StatDataPoint } from "../types";
 
-const API_BASE_URL = "http://localhost:8000/api";
+const WS_URL = "ws://localhost:8000/ws";
 
 export function useSimulation() {
   const [gameState, setGameState] = useState<SimulationState>({
+    step: 0,
     agents: [],
     stats: null,
     history: [],
     running: false,
     grid_width: 50,
     grid_height: 50,
-    fire_started: false, // Added missing property
+    fire_started: false,
   });
 
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentStep, setCurrentStep] = useState(0);
+  const ws = useRef<WebSocket | null>(null);
 
-  const initSimulation = useCallback(async (params: any) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/init`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(params),
-      });
-      const data = await response.json();
-      
-      setCurrentStep(0);
-      setGameState({
-        agents: [],
-        stats: null,
-        history: [], 
-        running: false,
-        grid_width: data.grid_width,
-        grid_height: data.grid_height,
-        fire_started: false, // Added missing property
-      });
-      
-      fetchState(0);
-    } catch (error) {
-      console.error("Failed to initialize simulation:", error);
-    }
-  }, []);
-
-  const fetchState = useCallback(async (stepIndex: number) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/state`);
-      const data = await response.json();
+  useEffect(() => {
+    // Establish WebSocket connection
+    ws.current = new WebSocket(WS_URL);
+    
+    // Listen for incoming state updates from the Python server
+    ws.current.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.error) return;
       
       setGameState((prev) => {
-        const newHistoryPoint: StatDataPoint = { ...data.stats, step: stepIndex };
+        const currentStep = data.step;
+        const newHistoryPoint: StatDataPoint = { ...data.stats, step: currentStep };
+        
+        // If the step is 0 (new init), clear the history array
+        const newHistory = currentStep === 0 ? [] : [...prev.history, newHistoryPoint];
+        
+        // Auto-pause if simulation finishes (everyone escaped or died)
+        if (!data.running && prev.running) {
+          setIsPlaying(false);
+        }
+        
         return {
           ...prev,
           ...data,
-          history: [...prev.history, newHistoryPoint],
+          history: newHistory,
         };
       });
-    } catch (error) {
-      console.error("Failed to fetch state:", error);
-    }
+    };
+
+    // Cleanup connection when component unmounts
+    return () => {
+      ws.current?.close();
+    };
   }, []);
 
-  const stepSimulation = useCallback(async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/step`);
-      const data = await response.json();
-      
-      setCurrentStep((prevStep) => {
-        const nextStep = prevStep + 1;
-        setGameState((prev) => {
-          const newHistoryPoint: StatDataPoint = { ...data.stats, step: nextStep };
-          return {
-            ...prev,
-            ...data,
-            history: [...prev.history, newHistoryPoint],
-          };
-        });
-        
-        // Auto-pause if simulation is no longer running
-        if (!data.running) setIsPlaying(false);
-        
-        return nextStep;
-      });
-    } catch (error) {
-      console.error("Failed to step simulation:", error);
-    }
+  const initSimulation = useCallback((params: any) => {
+    setIsPlaying(false);
+    ws.current?.send(JSON.stringify({ command: "init", params }));
+  }, []);
+
+  const stepSimulation = useCallback(() => {
+    ws.current?.send(JSON.stringify({ command: "step" }));
+  }, []);
+
+  const togglePlay = useCallback(() => {
+    setIsPlaying((prev) => {
+      const nextState = !prev;
+      ws.current?.send(JSON.stringify({ command: nextState ? "play" : "pause" }));
+      return nextState;
+    });
   }, []);
 
   return {
     gameState,
     isPlaying,
-    setIsPlaying,
+    togglePlay, // Export the toggle function instead of raw setter
     initSimulation,
     stepSimulation,
   };

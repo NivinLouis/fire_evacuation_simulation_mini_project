@@ -25,6 +25,7 @@ export interface StatDataPoint extends SimulationStats {
 }
 
 export interface SimulationState {
+  step: number;
   agents: Agent[];
   stats: SimulationStats | null;
   history: StatDataPoint[]; // NEW: Array to hold historical data

@@ -1,0 +1,7 @@
+install python 3.10
+create a virtual machine
+python3.10 pip install
+use python3.10 to run
+
+
+install nodejs
