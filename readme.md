@@ -5,7 +5,8 @@ cd backend
 uv venv --python 3.12
 
 #Activate the virtual environment 
-source .venv/bin/activate
+source venv/bin/activate (for mac/linux)
+venv\Scripts\activate (for windows)
 
 #pip install requirements
 uv pip install -r requirements.txt

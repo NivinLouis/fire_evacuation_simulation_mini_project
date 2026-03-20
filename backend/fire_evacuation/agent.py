@@ -349,6 +349,9 @@ class Human(Agent):
 
         self.planned_action: Human.Action = None  # An action the agent intends to do when they reach their planned target {"carry", "morale"}
 
+        self.cached_path: list[Coordinate] = []
+        self.cached_target: Coordinate = None
+
         self.visible_tiles: tuple[Coordinate, tuple[Agent]] = []
 
         # An empty set representing what the agent knows of the floor plan
@@ -906,12 +909,20 @@ class Human(Agent):
             self.update_action()
 
         while self.planned_target[1] and not next_location:
-            if self.location_is_traversable(self.planned_target[1]):
-                # Target is traversable
-                path = self.get_path(graph, self.planned_target[1])
+            target_pos = self.planned_target[1]
+            if target_pos == self.cached_target and self.cached_path and self.pos in self.cached_path:
+                idx = self.cached_path.index(self.pos)
+                path = self.cached_path[idx:]
             else:
-                # Target is not traversable (e.g. we are going to another Human), so don't include target in the path
-                path = self.get_path(graph, self.planned_target[1], include_target=False)
+                if self.location_is_traversable(target_pos):
+                    # Target is traversable
+                    path = self.get_path(graph, target_pos)
+                else:
+                    # Target is not traversable (e.g. we are going to another Human), so don't include target in the path
+                    path = self.get_path(graph, target_pos, include_target=False)
+                
+                self.cached_target = target_pos
+                self.cached_path = path
 
             if len(path) > 0:
                 next_location, next_path = self.get_next_location(path)
@@ -924,6 +935,8 @@ class Human(Agent):
 
                 if self.check_retreat(next_path, next_location):
                     # We are retreating and therefore need to try a totally new path, so continue from the start of the loop
+                    self.cached_target = None
+                    self.cached_path = []
                     continue
 
                 # Test the next location to see if we can move there
@@ -990,6 +1003,9 @@ class Human(Agent):
                     edges = graph.edges(next_location)
                     pruned_edges.update(edges)
                     graph.remove_node(next_location)
+                    
+                    self.cached_target = None
+                    self.cached_path = []
 
                     # Reset planned_target if the next location was the end of the path
                     if next_location == path[-1]:
