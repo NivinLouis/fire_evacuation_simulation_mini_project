@@ -26,14 +26,15 @@ export default function Home() {
       </header>
 
       <div className="flex-1 flex flex-row overflow-hidden relative">
-        {/* Left Panel: Controls */}
-        <aside className="w-[320px] shrink-0 border-r border-slate-200 bg-white overflow-y-auto p-5 scrollbar-thin shadow-right z-10">
+        {/* Left Panel: Controls & Stats */}
+        <aside className="w-[340px] shrink-0 border-r border-slate-200 bg-white overflow-y-auto p-5 scrollbar-thin shadow-right z-10 flex flex-col gap-6">
           <Controls 
             onInit={initSimulation} 
             isPlaying={isPlaying} 
             onTogglePlay={togglePlay} 
             onStep={stepSimulation} 
           />
+          <Stats stats={gameState.stats} />
         </aside>
 
         {/* Center Panel: Simulation Grid Canvas */}
@@ -43,9 +44,8 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Right Panel: Stats & Charts */}
-        <aside className="w-[420px] shrink-0 border-l border-slate-200 bg-white overflow-y-auto p-5 flex flex-col gap-8 scrollbar-thin shadow-left z-10">
-          <Stats stats={gameState.stats} />
+        {/* Right Panel: Charts */}
+        <aside className="w-[500px] shrink-0 border-l border-slate-200 bg-white overflow-y-auto p-5 flex flex-col gap-8 scrollbar-thin shadow-left z-10">
           <Charts history={gameState.history} />
         </aside>
       </div>

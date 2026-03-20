@@ -50,8 +50,13 @@ export default function SimulationGrid({ gameState }: Props) {
 
   return (
     <div 
-      className="relative bg-white border border-slate-300 rounded-xl overflow-hidden shadow-sm mx-auto"
-      style={{ height: 'min(100%, 100vw)', width: 'min(100%, 100vh)', aspectRatio: '1 / 1', maxWidth: '100%', maxHeight: '100%' }}
+      className="relative bg-white border border-slate-300 shadow-sm mx-auto overflow-hidden"
+      style={{ 
+        aspectRatio: `${grid_width} / ${grid_height}`,
+        width: '100%',
+        maxHeight: 'calc(100vh - 4rem)',
+        maxWidth: `calc((100vh - 4rem) * (${grid_width} / ${grid_height}))`
+      }}
     >
       {agents.map((agent) => {
         const imgSrc = getAgentImage(agent);
