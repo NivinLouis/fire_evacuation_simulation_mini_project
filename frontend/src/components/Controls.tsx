@@ -55,8 +55,8 @@ export default function Controls({ onInit, isPlaying, onTogglePlay, onStep }: Pr
   };
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md w-full max-w-sm flex flex-col gap-4">
-      <h2 className="text-xl font-bold text-gray-800 border-b pb-2">Simulation Parameters</h2>
+    <div className="flex flex-col gap-5 w-full">
+      <h2 className="text-lg font-bold text-slate-800 border-b border-slate-200 pb-2">Parameters</h2>
       
       {/* Dynamic Dropdown for Floorplans */}
       <div className="flex flex-col gap-1">
@@ -65,7 +65,7 @@ export default function Controls({ onInit, isPlaying, onTogglePlay, onStep }: Pr
           name="floor_plan_file" 
           value={params.floor_plan_file} 
           onChange={handleChange}
-          className="w-full border border-gray-300 rounded p-2 bg-gray-50 text-sm focus:ring-blue-500 focus:border-blue-500"
+          className="w-full border border-slate-300 rounded-lg p-2.5 bg-slate-50 text-sm focus:ring-blue-500 focus:border-blue-500 transition-shadow"
         >
           {floorplans.length === 0 ? (
             <option>Loading...</option>
@@ -132,21 +132,21 @@ export default function Controls({ onInit, isPlaying, onTogglePlay, onStep }: Pr
       <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-gray-200">
         <button 
           onClick={() => onInit(params)}
-          className="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded hover:bg-blue-700 transition-colors"
+          className="w-full px-4 py-2.5 bg-blue-600 text-white text-sm font-bold tracking-wide rounded-xl hover:bg-blue-700 active:scale-95 transition-all shadow-sm"
         >
           Initialize Model
         </button>
-        <div className="flex gap-2">
+        <div className="flex gap-3 mt-1">
           <button 
             onClick={onStep}
             disabled={isPlaying}
-            className="flex-1 px-4 py-2 bg-gray-600 text-white font-semibold rounded hover:bg-gray-700 transition-colors disabled:opacity-50"
+            className="flex-1 px-4 py-2.5 bg-slate-600 text-white text-sm font-bold tracking-wide rounded-xl hover:bg-slate-700 active:scale-95 transition-all shadow-sm disabled:opacity-50 disabled:active:scale-100"
           >
             Step
           </button>
           <button 
             onClick={onTogglePlay}
-            className={`flex-1 px-4 py-2 text-white font-semibold rounded transition-colors ${isPlaying ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+            className={`flex-1 px-4 py-2.5 text-white text-sm font-bold tracking-wide rounded-xl active:scale-95 transition-all shadow-sm ${isPlaying ? 'bg-rose-500 hover:bg-rose-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}
           >
             {isPlaying ? "Pause" : "Play"}
           </button>

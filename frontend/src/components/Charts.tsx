@@ -13,12 +13,12 @@ export default function Charts({ history }: Props) {
   if (history.length === 0) return null;
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 w-full mt-6">
+    <div className="flex flex-col gap-6 w-full">
       
       {/* Human Status Chart */}
-      <div className="bg-white p-6 rounded-lg shadow-md flex-1">
-        <h3 className="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Human Status</h3>
-        <div className="h-64">
+      <div className="flex flex-col">
+        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Human Status</h3>
+        <div className="h-[180px] w-full bg-slate-50/50 border border-slate-200 rounded-xl p-2 shadow-sm">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={history} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -35,9 +35,9 @@ export default function Charts({ history }: Props) {
       </div>
 
       {/* Human Mobility Chart */}
-      <div className="bg-white p-6 rounded-lg shadow-md flex-1">
-        <h3 className="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Human Mobility</h3>
-        <div className="h-64">
+      <div className="flex flex-col">
+        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Human Mobility</h3>
+        <div className="h-[180px] w-full bg-slate-50/50 border border-slate-200 rounded-xl p-2 shadow-sm">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={history} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -54,9 +54,9 @@ export default function Charts({ history }: Props) {
       </div>
 
       {/* Human Collaboration Chart */}
-      <div className="bg-white p-6 rounded-lg shadow-md flex-1">
-        <h3 className="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Human Collaboration</h3>
-        <div className="h-64">
+      <div className="flex flex-col">
+        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Human Collaboration</h3>
+        <div className="h-[180px] w-full bg-slate-50/50 border border-slate-200 rounded-xl p-2 shadow-sm">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={history} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />

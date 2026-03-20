@@ -10,42 +10,44 @@ export default function Home() {
   const { gameState, initSimulation, stepSimulation, isPlaying, togglePlay } = useSimulation();
 
   return (
-    <main className="min-h-screen p-8 bg-gray-100">
-      <div className="max-w-7xl mx-auto flex flex-col gap-6">
+    <main className="h-screen w-screen overflow-hidden bg-slate-50 flex flex-col text-slate-900 font-sans">
+      <header className="shrink-0 flex justify-between items-center bg-white px-6 py-4 border-b border-slate-200 shadow-sm z-10">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Fire Evacuation Dashboard</h1>
+          <p className="text-sm font-medium text-slate-500 mt-1">Agent-Based Model Simulation &bull; <span className="text-slate-700">Step {gameState.step}</span></p>
+        </div>
         
-        <header className="flex justify-between items-center bg-white p-6 rounded-lg shadow-sm">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Fire Evacuation Dashboard</h1>
-            <p className="text-gray-600">Agent-Based Model Simulation | Step: {gameState.step}</p>
+        {gameState.fire_started && (
+          <div className="flex items-center gap-2 bg-rose-50 text-rose-600 px-4 py-1.5 rounded-full border border-rose-200 animate-pulse shadow-sm">
+            <span className="text-lg">🔥</span>
+            <span className="text-sm font-bold tracking-wider">FIRE ACTIVE</span>
           </div>
-          
-          {gameState.fire_started && (
-            <div className="flex items-center gap-2 bg-red-100 text-red-700 px-4 py-2 rounded-full border border-red-200 animate-pulse">
-              <span className="text-2xl">🔥</span>
-              <span className="font-bold tracking-wider">FIRE ACTIVE</span>
-            </div>
-          )}
-        </header>
+        )}
+      </header>
 
-        <div className="flex flex-col lg:flex-row gap-6 items-start">
-          <div className="flex flex-col gap-6 w-full lg:w-auto">
-            {/* Note: Pass togglePlay instead of an inline function */}
-            <Controls 
-              onInit={initSimulation} 
-              isPlaying={isPlaying} 
-              onTogglePlay={togglePlay} 
-              onStep={stepSimulation} 
-            />
-            <Stats stats={gameState.stats} />
-          </div>
+      <div className="flex-1 flex flex-row overflow-hidden relative">
+        {/* Left Panel: Controls */}
+        <aside className="w-[320px] shrink-0 border-r border-slate-200 bg-white overflow-y-auto p-5 scrollbar-thin shadow-right z-10">
+          <Controls 
+            onInit={initSimulation} 
+            isPlaying={isPlaying} 
+            onTogglePlay={togglePlay} 
+            onStep={stepSimulation} 
+          />
+        </aside>
 
-          <div className="w-full lg:flex-1 bg-white p-4 sm:p-6 rounded-lg shadow-md flex justify-center items-center overflow-hidden">
+        {/* Center Panel: Simulation Grid Canvas */}
+        <section className="flex-1 bg-slate-100/80 flex flex-col items-center justify-center p-6 overflow-hidden relative shadow-inner">
+          <div className="w-full h-full flex items-center justify-center">
             <SimulationGrid gameState={gameState} />
           </div>
-        </div>
+        </section>
 
-        <Charts history={gameState.history} />
-
+        {/* Right Panel: Stats & Charts */}
+        <aside className="w-[420px] shrink-0 border-l border-slate-200 bg-white overflow-y-auto p-5 flex flex-col gap-8 scrollbar-thin shadow-left z-10">
+          <Stats stats={gameState.stats} />
+          <Charts history={gameState.history} />
+        </aside>
       </div>
     </main>
   );

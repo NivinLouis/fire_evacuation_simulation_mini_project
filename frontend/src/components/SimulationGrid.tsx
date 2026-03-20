@@ -49,8 +49,10 @@ export default function SimulationGrid({ gameState }: Props) {
   };
 
   return (
-    // w-full makes it fluid, max-w-4xl caps the size so it doesn't get ridiculously huge, aspect-square keeps it a perfect box
-    <div className="relative w-full min-w-[280px] max-w-4xl aspect-square bg-gray-100 border-2 border-gray-800 mx-auto overflow-hidden shadow-inner">
+    <div 
+      className="relative bg-white border border-slate-300 rounded-xl overflow-hidden shadow-sm mx-auto"
+      style={{ height: 'min(100%, 100vw)', width: 'min(100%, 100vh)', aspectRatio: '1 / 1', maxWidth: '100%', maxHeight: '100%' }}
+    >
       {agents.map((agent) => {
         const imgSrc = getAgentImage(agent);
         if (!imgSrc) return null;

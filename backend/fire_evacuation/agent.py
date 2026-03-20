@@ -8,8 +8,10 @@ from mesa import Agent #ABM library, used for creating agents and placing them o
 from copy import deepcopy
 
 
+from functools import lru_cache
 
 
+@lru_cache(maxsize=100000)
 def get_line(start, end):
     """
     Implementaiton of Bresenham's Line Algorithm
