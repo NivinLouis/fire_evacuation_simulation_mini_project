@@ -7,7 +7,7 @@ import time
 from mesa import Model
 from mesa.datacollection import DataCollector
 from mesa.space import Coordinate, MultiGrid
-from mesa.time import RandomActivation
+
 
 from .agent import Human, Wall, FireExit, Furniture, Fire, Door
 
@@ -40,7 +40,7 @@ class FireEvacuation(Model):
     ):
         # Load floorplan
         # floorplan = np.genfromtxt(path.join("fire_evacuation/floorplans/", floor_plan_file))
-        #super().__init__()
+        super().__init__()
         with open(os.path.join("fire_evacuation/floorplans/", floor_plan_file), "rt") as f:
             floorplan = np.matrix([line.strip().split() for line in f.readlines()])
 
@@ -61,7 +61,7 @@ class FireEvacuation(Model):
         self.save_plots = save_plots
 
         # Set up model objects
-        self.schedule = RandomActivation(self)
+
 
         self.grid = MultiGrid(height, width, torus=False)
 
@@ -100,11 +100,10 @@ class FireEvacuation(Model):
 
             if floor_object:
                 self.grid.place_agent(floor_object, pos)
-                self.schedule.add(floor_object)
 
         # Create a graph of traversable routes, used by agents for pathing
         self.graph = nx.Graph()
-        for agents, x, y in self.grid.coord_iter():
+        for agents, (x, y) in self.grid.coord_iter():
             pos = (x, y)
 
             # If the location is empty, or there are no non-traversable agents
@@ -150,7 +149,8 @@ class FireEvacuation(Model):
         # Start placing human agents
         for i in range(0, self.human_count):
             if self.random_spawn:  # Place human agents randomly
-                pos = self.grid.find_empty()
+                empty_cells = [pos for _, pos in self.grid.coord_iter() if self.grid.is_cell_empty(pos)]
+                pos = self.random.choice(empty_cells) if empty_cells else None
             else:  # Place human agents at specified spawn locations
                 pos = np.random.choice(self.spawn_pos_list)
 
@@ -215,7 +215,6 @@ class FireEvacuation(Model):
                 )
 
                 self.grid.place_agent(human, pos)
-                self.schedule.add(human)
             else:
                 print("No tile empty for human placement!")
 
@@ -274,7 +273,6 @@ class FireEvacuation(Model):
 
                     fire = Fire(pos, self)
                     self.grid.place_agent(fire, pos)
-                    self.schedule.add(fire)
 
                     self.fire_started = True
                     print(f"Fire started at position {pos}")
@@ -289,7 +287,7 @@ class FireEvacuation(Model):
         Advance the model by one step.
         """
 
-        self.schedule.step()
+        self.agents.shuffle_do("step")
 
         # If there's no fire yet, attempt to start one
         if not self.fire_started:
@@ -311,7 +309,7 @@ class FireEvacuation(Model):
         """
 
         count = 0
-        for agent in model.schedule.agents:
+        for agent in model.agents:
             if isinstance(agent, Human):
                 if collaboration_type == Human.Action.VERBAL_SUPPORT:
                     count += agent.get_verbal_collaboration_count()
@@ -328,7 +326,7 @@ class FireEvacuation(Model):
         Helper method to count the status of Human agents in the model
         """
         count = 0
-        for agent in model.schedule.agents:
+        for agent in model.agents:
             if isinstance(agent, Human) and agent.get_status() == status:
                 count += 1
 
@@ -340,7 +338,7 @@ class FireEvacuation(Model):
         Helper method to count the mobility of Human agents in the model
         """
         count = 0
-        for agent in model.schedule.agents:
+        for agent in model.agents:
             if isinstance(agent, Human) and agent.get_mobility() == mobility:
                 count += 1
 

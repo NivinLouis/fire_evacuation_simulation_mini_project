@@ -1,4 +1,4 @@
-python3.10 -m venv min_project
+python3.12 -m venv min_project
 source min_project/bin/activate
 
-pip install "uvicorn[standard]"
+pip install -r requirements.txt

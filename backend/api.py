@@ -24,7 +24,7 @@ def get_grid_state():
         return {"error": "Model not initialized"}
     
     agents_data = []
-    for agents, x, y in sim_model.grid.coord_iter():
+    for agents, (x, y) in sim_model.grid.coord_iter():
         for agent in agents:
             agent_info = {
                 "id": str(agent.unique_id),
@@ -51,8 +51,8 @@ def get_grid_state():
     }
     
     return {
-        "step": sim_model.schedule.steps, # NEW: Track time
-        "agents": agents_data, 
+        "step": getattr(sim_model, "steps", 0), # NEW: Track time
+        "agents": agents_data,
         "stats": stats, 
         "running": sim_model.running,
         "fire_started": getattr(sim_model, "fire_started", False)

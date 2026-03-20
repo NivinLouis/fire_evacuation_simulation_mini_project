@@ -7,7 +7,7 @@ from enum import IntEnum
 from mesa import Agent #ABM library, used for creating agents and placing them on the grid
 from copy import deepcopy
 
-from fire_evacuation.utils import get_random_id
+
 
 
 def get_line(start, end):
@@ -85,9 +85,7 @@ class FloorObject(Agent):
         visibility: int = 2,
         model=None,
     ):
-        rand_id = get_random_id()
-        super().__init__(rand_id, model)
-        self.pos = pos
+        super().__init__(model)
         self.traversable = traversable
         self.flammable = flammable
         self.spreads_smoke = spreads_smoke
@@ -176,7 +174,6 @@ class Fire(FloorObject):
                     for agent in contents:
                         if agent.flammable:
                             fire = Fire(neighbor_pos, self.model)
-                            self.model.schedule.add(fire)
                             self.model.grid.place_agent(fire, neighbor_pos)
                             break
 
@@ -184,7 +181,6 @@ class Fire(FloorObject):
                     for agent in contents:
                         if agent.spreads_smoke:
                             smoke = Smoke(neighbor_pos, self.model)
-                            self.model.schedule.add(smoke)
                             self.model.grid.place_agent(smoke, neighbor_pos)
                             break
 
@@ -223,7 +219,6 @@ class Smoke(FloorObject):
                 if place_smoke:
                     smoke = Smoke(neighbor, self.model)
                     self.model.grid.place_agent(smoke, neighbor)
-                    self.model.schedule.add(smoke)
 
         if self.spread >= self.spread_threshold:
             self.spread_rate = 0
@@ -314,8 +309,7 @@ class Human(Agent):
         believes_alarm: bool,
         model,
     ):
-        rand_id = get_random_id()
-        super().__init__(rand_id, model)
+        super().__init__(model)
 
         # Human agents should not be traversable, but we allow "displacement", e.g. pushing to the side
         self.traversable = False
@@ -323,7 +317,6 @@ class Human(Agent):
         self.flammable = True
         self.spreads_smoke = True
 
-        self.pos = pos
         self.visibility = 2
         self.health = health
         self.mobility: Human.Mobility = Human.Mobility.NORMAL
