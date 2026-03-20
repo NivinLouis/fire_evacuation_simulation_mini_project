@@ -1,9 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { SimulationState, StatDataPoint } from "../types";
 
-// Replace the hardcoded WS_URL and API_BASE_URL:
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000/ws";
+
 
 export function useSimulation() {
   const [gameState, setGameState] = useState<SimulationState>({
@@ -22,7 +20,8 @@ export function useSimulation() {
 
   useEffect(() => {
     // Establish WebSocket connection
-    ws.current = new WebSocket(WS_URL);
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || `ws://${window.location.hostname}:8000/ws`;
+    ws.current = new WebSocket(wsUrl);
     
     // Listen for incoming state updates from the Python server
     ws.current.onmessage = (event) => {
