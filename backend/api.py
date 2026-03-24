@@ -68,24 +68,54 @@ def get_floorplans():
 
 
 # --- NEW: WEBSOCKET ENDPOINT ---
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: list[WebSocket] = []
+        self.is_playing = False
+        self.loop_task = None
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+        # Send current state upon connection
+        if sim_model:
+            await websocket.send_json(get_grid_state())
+
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+        if not self.active_connections:
+            self.is_playing = False
+            if self.loop_task:
+                self.loop_task.cancel()
+                self.loop_task = None
+
+    async def broadcast(self, message: dict):
+        for connection in list(self.active_connections):
+            try:
+                await connection.send_json(message)
+            except Exception:
+                self.disconnect(connection)
+
+manager = ConnectionManager()
+
+async def simulation_loop():
+    while True:
+        if manager.is_playing and sim_model and sim_model.running:
+            sim_model.step()
+            await manager.broadcast(get_grid_state())
+            await asyncio.sleep(0.1)  # 10 Steps per second (Adjust for speed)
+        else:
+            await asyncio.sleep(0.1)
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
+    await manager.connect(websocket)
     global sim_model
-    is_playing = False
     
-    # Background task to run the simulation loop automatically
-    async def simulation_loop():
-        nonlocal is_playing
-        while True:
-            if is_playing and sim_model and sim_model.running:
-                sim_model.step()
-                await websocket.send_json(get_grid_state())
-                await asyncio.sleep(0.1)  # 10 Steps per second (Adjust for speed)
-            else:
-                await asyncio.sleep(0.1)
-
-    loop_task = asyncio.create_task(simulation_loop())
+    # Start the shared loop task if not started
+    if not manager.loop_task:
+        manager.loop_task = asyncio.create_task(simulation_loop())
 
     try:
         while True:
@@ -104,22 +134,24 @@ async def websocket_endpoint(websocket: WebSocket):
                     random_spawn=params.get("random_spawn", True),
                     save_plots=params.get("save_plots", False)
                 )
-                is_playing = False
-                await websocket.send_json(get_grid_state())
+                manager.is_playing = False
+                await manager.broadcast(get_grid_state())
                 
             elif command == "step":
                 if sim_model and sim_model.running:
                     sim_model.step()
-                    await websocket.send_json(get_grid_state())
+                    await manager.broadcast(get_grid_state())
                     
             elif command == "play":
-                is_playing = True
+                manager.is_playing = True
+                await manager.broadcast(get_grid_state())
                 
             elif command == "pause":
-                is_playing = False
+                manager.is_playing = False
+                await manager.broadcast(get_grid_state())
                 
     except WebSocketDisconnect:
-        loop_task.cancel() # Stop the loop if user closes the browser
+        manager.disconnect(websocket)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

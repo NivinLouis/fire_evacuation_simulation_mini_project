@@ -1,0 +1,1749 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Real-Time Fire Evacuation Simulation | Using Agent Based Modelling</title>
+  <meta name="description"
+    content="An Agent-Based Model (ABM) simulation that models human behaviour during fire emergencies in real time. Built with Python Mesa, FastAPI, WebSocket, and Next.js." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --fire: #ff4d00;
+      --fire-glow: #ff7a00;
+      --amber: #ffb347;
+      --green: #00e5a0;
+      --blue: #00b4ff;
+      --purple: #9b72ff;
+      --bg: #080c14;
+      --bg2: #0d1525;
+      --bg3: #111f38;
+      --surface: rgba(255, 255, 255, 0.04);
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #e8eef8;
+      --muted: #7a8ea8;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    /* ─── SCROLLBAR ─── */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--fire);
+      border-radius: 3px;
+    }
+
+    /* ─── NAV ─── */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2.5rem;
+      height: 60px;
+      background: rgba(8, 12, 20, 0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-weight: 800;
+      font-size: 1.05rem;
+      letter-spacing: 0.02em;
+    }
+
+    .nav-logo .flame {
+      font-size: 1.3rem;
+    }
+
+    .nav-logo span {
+      color: var(--fire-glow);
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover {
+      color: var(--fire-glow);
+    }
+
+    .nav-badge {
+      background: linear-gradient(135deg, var(--fire), var(--fire-glow));
+      color: #fff;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.3rem 0.9rem;
+      border-radius: 99px;
+      letter-spacing: 0.08em;
+    }
+
+    /* ─── HERO ─── */
+    #hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 6rem 2rem 4rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-bg {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      background: radial-gradient(ellipse 80% 60% at 50% 80%, rgba(255, 77, 0, 0.18) 0%, transparent 70%),
+        radial-gradient(ellipse 60% 40% at 80% 20%, rgba(0, 180, 255, 0.1) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 30% at 20% 60%, rgba(155, 114, 255, 0.1) 0%, transparent 60%);
+    }
+
+    .hero-grid {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      background-image: linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 1;
+      max-width: 900px;
+    }
+
+    .hero-event-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(255, 77, 0, 0.12);
+      border: 1px solid rgba(255, 77, 0, 0.3);
+      color: var(--fire-glow);
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.35rem 1rem;
+      border-radius: 99px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 1.8rem;
+      animation: pulse-border 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-border {
+
+      0%,
+      100% {
+        border-color: rgba(255, 77, 0, 0.3);
+        box-shadow: 0 0 0 transparent;
+      }
+
+      50% {
+        border-color: rgba(255, 77, 0, 0.7);
+        box-shadow: 0 0 16px rgba(255, 77, 0, 0.2);
+      }
+    }
+
+    .hero-title {
+      font-size: clamp(2.8rem, 6vw, 5rem);
+      font-weight: 900;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+      margin-bottom: 1.2rem;
+    }
+
+    .hero-title .highlight {
+      background: linear-gradient(135deg, var(--fire) 0%, var(--fire-glow) 40%, var(--amber) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-subtitle {
+      font-size: 1.15rem;
+      color: var(--muted);
+      line-height: 1.7;
+      max-width: 680px;
+      margin: 0 auto 2.5rem;
+      font-weight: 400;
+    }
+
+    .hero-ctas {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 3.5rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      padding: 0.75rem 1.8rem;
+      border-radius: 10px;
+      text-decoration: none;
+      transition: all 0.25s;
+      cursor: pointer;
+      border: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--fire), var(--fire-glow));
+      color: #fff;
+      box-shadow: 0 4px 24px rgba(255, 77, 0, 0.4);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(255, 77, 0, 0.55);
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-outline:hover {
+      border-color: var(--fire-glow);
+      color: var(--fire-glow);
+      transform: translateY(-2px);
+    }
+
+    .hero-stats {
+      display: flex;
+      gap: 2.5rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .hero-stat {
+      text-align: center;
+    }
+
+    .hero-stat .num {
+      font-size: 2rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--fire-glow), var(--amber));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-stat .label {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 0.15rem;
+      font-weight: 500;
+    }
+
+    .hero-divider {
+      width: 1px;
+      height: 48px;
+      background: var(--border);
+      align-self: center;
+    }
+
+    .hero-img-wrap {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 820px;
+      margin: 2.5rem auto 0;
+    }
+
+    .hero-img-wrap img {
+      width: 100%;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 77, 0, 0.2);
+      box-shadow: 0 0 80px rgba(255, 77, 0, 0.25), 0 40px 80px rgba(0, 0, 0, 0.5);
+    }
+
+    .hero-img-overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 40%;
+      background: linear-gradient(transparent, var(--bg));
+      border-radius: 0 0 20px 20px;
+    }
+
+    /* ─── SECTIONS ─── */
+    section {
+      padding: 5rem 2rem;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .section-tag {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--fire-glow);
+      margin-bottom: 0.8rem;
+    }
+
+    h2 {
+      font-size: clamp(1.8rem, 3.5vw, 2.5rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 1rem;
+    }
+
+    .section-lead {
+      font-size: 1.05rem;
+      color: var(--muted);
+      line-height: 1.7;
+      max-width: 620px;
+      margin-bottom: 3rem;
+    }
+
+    /* ─── ABOUT / WHAT IT IS ─── */
+    #about {
+      background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+    }
+
+    .about-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      align-items: start;
+    }
+
+    @media (max-width: 768px) {
+      .about-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .about-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.8rem;
+      transition: border-color 0.3s, transform 0.3s;
+    }
+
+    .about-card:hover {
+      border-color: rgba(255, 122, 0, 0.4);
+      transform: translateY(-4px);
+    }
+
+    .about-card .icon {
+      font-size: 2rem;
+      margin-bottom: 0.8rem;
+    }
+
+    .about-card h3 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .about-card p {
+      font-size: 0.9rem;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    /* ─── HOW IT WORKS ─── */
+    #how {
+      background: var(--bg2);
+    }
+
+    .pipeline {
+      display: flex;
+      gap: 0;
+      align-items: stretch;
+      flex-wrap: wrap;
+    }
+
+    .pipeline-step {
+      flex: 1;
+      min-width: 160px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0;
+      padding: 1.8rem 1.4rem;
+      text-align: center;
+      position: relative;
+      transition: background 0.3s;
+    }
+
+    .pipeline-step:first-child {
+      border-radius: 14px 0 0 14px;
+    }
+
+    .pipeline-step:last-child {
+      border-radius: 0 14px 14px 0;
+    }
+
+    .pipeline-step:hover {
+      background: rgba(255, 122, 0, 0.06);
+    }
+
+    .pipeline-step .step-num {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--fire), var(--fire-glow));
+      color: #fff;
+      font-weight: 800;
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 0.8rem;
+    }
+
+    .pipeline-step .step-icon {
+      font-size: 1.6rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .pipeline-step h4 {
+      font-size: 0.9rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+    }
+
+    .pipeline-step p {
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .pipeline-arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--fire-glow);
+      font-size: 1.2rem;
+      padding: 0 0.5rem;
+      flex-shrink: 0;
+    }
+
+    /* ─── AGENTS ─── */
+    #agents {
+      background: var(--bg);
+    }
+
+    .agents-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .agent-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.2rem 1rem;
+      text-align: center;
+      transition: all 0.25s;
+      cursor: default;
+    }
+
+    .agent-card:hover {
+      transform: translateY(-4px);
+    }
+
+    .agent-card.human:hover {
+      border-color: var(--blue);
+      box-shadow: 0 8px 32px rgba(0, 180, 255, 0.15);
+    }
+
+    .agent-card.fire:hover {
+      border-color: var(--fire);
+      box-shadow: 0 8px 32px rgba(255, 77, 0, 0.2);
+    }
+
+    .agent-card.smoke:hover {
+      border-color: var(--muted);
+      box-shadow: 0 8px 32px rgba(122, 142, 168, 0.15);
+    }
+
+    .agent-card.exit:hover {
+      border-color: var(--green);
+      box-shadow: 0 8px 32px rgba(0, 229, 160, 0.15);
+    }
+
+    .agent-card.collab:hover {
+      border-color: var(--purple);
+      box-shadow: 0 8px 32px rgba(155, 114, 255, 0.2);
+    }
+
+    .agent-emoji {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .agent-card h4 {
+      font-size: 0.9rem;
+      font-weight: 700;
+      margin-bottom: 0.3rem;
+    }
+
+    .agent-card p {
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .agent-badge {
+      display: inline-block;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 0.2rem 0.6rem;
+      border-radius: 99px;
+      margin-top: 0.5rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .b-alive {
+      background: rgba(0, 180, 255, 0.15);
+      color: var(--blue);
+    }
+
+    .b-fire {
+      background: rgba(255, 77, 0, 0.15);
+      color: var(--fire);
+    }
+
+    .b-smoke {
+      background: rgba(122, 142, 168, 0.15);
+      color: var(--muted);
+    }
+
+    .b-exit {
+      background: rgba(0, 229, 160, 0.15);
+      color: var(--green);
+    }
+
+    .b-purple {
+      background: rgba(155, 114, 255, 0.15);
+      color: var(--purple);
+    }
+
+    .b-amber {
+      background: rgba(255, 179, 71, 0.15);
+      color: var(--amber);
+    }
+
+    /* ─── TECH STACK ─── */
+    #tech {
+      background: var(--bg2);
+    }
+
+    .tech-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 1rem;
+    }
+
+    .tech-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.2rem 0.8rem;
+      text-align: center;
+      transition: all 0.25s;
+    }
+
+    .tech-card:hover {
+      border-color: var(--fire-glow);
+      transform: translateY(-3px);
+    }
+
+    .tech-icon {
+      font-size: 1.8rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .tech-card h4 {
+      font-size: 0.82rem;
+      font-weight: 700;
+      margin-bottom: 0.2rem;
+    }
+
+    .tech-card p {
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+
+    /* ─── USE CASES ─── */
+    #usecases {
+      background: var(--bg);
+    }
+
+    .usecases-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .usecase-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.8rem;
+      transition: all 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .usecase-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--fire), var(--fire-glow));
+      transform: scaleX(0);
+      transition: transform 0.3s;
+      transform-origin: left;
+    }
+
+    .usecase-card:hover::before {
+      transform: scaleX(1);
+    }
+
+    .usecase-card:hover {
+      border-color: rgba(255, 122, 0, 0.3);
+      transform: translateY(-4px);
+    }
+
+    .usecase-icon {
+      font-size: 2.2rem;
+      margin-bottom: 0.8rem;
+    }
+
+    .usecase-card h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .usecase-card p {
+      font-size: 0.85rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* ─── FUTURE ─── */
+    #future {
+      background: var(--bg2);
+    }
+
+    .future-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .future-item {
+      display: flex;
+      gap: 1.2rem;
+      align-items: flex-start;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.4rem;
+      transition: all 0.25s;
+    }
+
+    .future-item:hover {
+      border-color: rgba(0, 229, 160, 0.3);
+      transform: translateX(6px);
+    }
+
+    .future-item .fi-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      flex-shrink: 0;
+      background: rgba(0, 229, 160, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+    }
+
+    .future-item.ai .fi-icon {
+      background: rgba(155, 114, 255, 0.1);
+    }
+
+    .future-item.iot .fi-icon {
+      background: rgba(0, 180, 255, 0.1);
+    }
+
+    .future-item.vr .fi-icon {
+      background: rgba(255, 77, 0, 0.1);
+    }
+
+    .future-item.ml .fi-icon {
+      background: rgba(255, 179, 71, 0.1);
+    }
+
+    .future-item h4 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-bottom: 0.3rem;
+    }
+
+    .future-item p {
+      font-size: 0.84rem;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .fi-tag {
+      display: inline-block;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      margin-bottom: 0.3rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .tag-green {
+      background: rgba(0, 229, 160, 0.12);
+      color: var(--green);
+    }
+
+    .tag-purple {
+      background: rgba(155, 114, 255, 0.12);
+      color: var(--purple);
+    }
+
+    .tag-blue {
+      background: rgba(0, 180, 255, 0.12);
+      color: var(--blue);
+    }
+
+    .tag-fire {
+      background: rgba(255, 77, 0, 0.12);
+      color: var(--fire-glow);
+    }
+
+    .tag-amber {
+      background: rgba(255, 179, 71, 0.12);
+      color: var(--amber);
+    }
+
+    /* ─── SOCIAL RELEVANCE ─── */
+    #social {
+      background: var(--bg);
+    }
+
+    .social-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 640px) {
+      .social-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .social-card {
+      border-radius: 16px;
+      padding: 2rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .social-card.sdg {
+      background: linear-gradient(135deg, rgba(0, 229, 160, 0.08), rgba(0, 180, 255, 0.05));
+      border: 1px solid rgba(0, 229, 160, 0.2);
+    }
+
+    .social-card.lives {
+      background: linear-gradient(135deg, rgba(255, 77, 0, 0.08), rgba(255, 122, 0, 0.05));
+      border: 1px solid rgba(255, 77, 0, 0.2);
+    }
+
+    .social-card.edu {
+      background: linear-gradient(135deg, rgba(155, 114, 255, 0.08), rgba(0, 180, 255, 0.05));
+      border: 1px solid rgba(155, 114, 255, 0.2);
+    }
+
+    .social-card.data {
+      background: linear-gradient(135deg, rgba(255, 179, 71, 0.08), rgba(255, 77, 0, 0.05));
+      border: 1px solid rgba(255, 179, 71, 0.2);
+    }
+
+    .social-card h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .social-card p {
+      font-size: 0.86rem;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .social-card .sc-icon {
+      font-size: 2rem;
+      margin-bottom: 0.8rem;
+    }
+
+    /* ─── STATS BANNER ─── */
+    #stats-banner {
+      background: linear-gradient(135deg, rgba(255, 77, 0, 0.1), rgba(255, 122, 0, 0.05));
+      border-top: 1px solid rgba(255, 77, 0, 0.15);
+      border-bottom: 1px solid rgba(255, 77, 0, 0.15);
+      padding: 3rem 2rem;
+    }
+
+    .stats-row {
+      display: flex;
+      gap: 0;
+      flex-wrap: wrap;
+    }
+
+    .stat-block {
+      flex: 1;
+      min-width: 150px;
+      text-align: center;
+      padding: 1rem;
+      border-right: 1px solid var(--border);
+    }
+
+    .stat-block:last-child {
+      border-right: none;
+    }
+
+    .stat-block .big {
+      font-size: 2.2rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, var(--fire), var(--amber));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .stat-block .lbl {
+      font-size: 0.78rem;
+      color: var(--muted);
+      font-weight: 500;
+      margin-top: 0.2rem;
+    }
+
+    /* ─── ARCHITECTURE DIAGRAM ─── */
+    #arch {
+      background: var(--bg2);
+    }
+
+    .arch-diagram {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.8;
+      overflow-x: auto;
+    }
+
+    .arch-diagram .kw-fire {
+      color: var(--fire-glow);
+    }
+
+    .arch-diagram .kw-blue {
+      color: var(--blue);
+    }
+
+    .arch-diagram .kw-green {
+      color: var(--green);
+    }
+
+    .arch-diagram .kw-purple {
+      color: var(--purple);
+    }
+
+    .arch-diagram .kw-amber {
+      color: var(--amber);
+    }
+
+    .arch-boxes {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+
+    @media (max-width: 700px) {
+      .arch-boxes {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .arch-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.2rem;
+    }
+
+    .arch-box h4 {
+      font-size: 0.82rem;
+      font-weight: 700;
+      margin-bottom: 0.6rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .arch-box ul {
+      list-style: none;
+    }
+
+    .arch-box ul li {
+      font-size: 0.78rem;
+      color: var(--muted);
+      padding: 0.2rem 0;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .arch-box ul li::before {
+      content: '›';
+      color: var(--fire-glow);
+      font-weight: 700;
+    }
+
+    /* ─── CTA BANNER ─── */
+    #cta {
+      padding: 5rem 2rem;
+      background: radial-gradient(ellipse 80% 80% at 50% 50%, rgba(255, 77, 0, 0.12) 0%, transparent 70%);
+      text-align: center;
+    }
+
+    #cta h2 {
+      font-size: clamp(2rem, 4vw, 3rem);
+      margin-bottom: 1rem;
+    }
+
+    #cta p {
+      color: var(--muted);
+      font-size: 1.05rem;
+      max-width: 560px;
+      margin: 0 auto 2rem;
+      line-height: 1.7;
+    }
+
+    /* ─── TEAM ─── */
+    #team {
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+    }
+
+    .team-grid {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .team-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.5rem 2rem;
+      text-align: center;
+      min-width: 180px;
+      transition: all 0.25s;
+    }
+
+    .team-card:hover {
+      border-color: rgba(255, 122, 0, 0.4);
+      transform: translateY(-3px);
+    }
+
+    .team-avatar {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      margin: 0 auto 0.8rem;
+      background: linear-gradient(135deg, var(--fire), var(--fire-glow));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+    }
+
+    .team-card h4 {
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+
+    .team-card p {
+      font-size: 0.76rem;
+      color: var(--muted);
+      margin-top: 0.2rem;
+    }
+
+    /* ─── FOOTER ─── */
+    footer {
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      padding: 2rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    footer span {
+      color: var(--fire-glow);
+    }
+
+    /* ─── ANIMATIONS ─── */
+    .fade-in {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+
+    .fade-in.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ─── FLOATING PARTICLES ─── */
+    .particles {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .particle {
+      position: absolute;
+      border-radius: 50%;
+      animation: float-up linear infinite;
+      opacity: 0;
+    }
+
+    @keyframes float-up {
+      0% {
+        opacity: 0;
+        transform: translateY(0) scale(0.5);
+      }
+
+      10% {
+        opacity: 0.7;
+      }
+
+      90% {
+        opacity: 0.3;
+      }
+
+      100% {
+        opacity: 0;
+        transform: translateY(-120px) scale(1.5);
+      }
+    }
+
+    @keyframes counter-animate {
+      from {
+        opacity: 0;
+        transform: scale(0.8);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <div class="nav-logo">
+      <span class="flame">🔥</span>
+      <div>Fire<span>Sim</span></div>
+    </div>
+    <ul class="nav-links">
+      <li><a href="#about">Overview</a></li>
+      <li><a href="#how">How It Works</a></li>
+      <li><a href="#usecases">Use Cases</a></li>
+      <li><a href="#future">Future</a></li>
+      <li><a href="#social">Impact</a></li>
+    </ul>
+    <div class="nav-badge">🏆 Innofest 2026</div>
+  </nav>
+
+  <!-- HERO -->
+  <section id="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-grid"></div>
+    <div class="particles" id="particles"></div>
+
+    <div class="hero-content fade-in">
+      <div class="hero-event-tag"> Agent-Based Modelling</div>
+
+      <h1 class="hero-title">
+        Real-Time<br>
+        <span class="highlight">Fire Evacuation</span><br>
+        Simulation
+      </h1>
+
+      <p class="hero-subtitle">
+        An intelligent Agent-Based Model that simulates human behaviour during building fire emergencies —
+        with live panic dynamics, smoke propagation, and peer collaboration mechanics — all visualised in a real-time
+        web dashboard.
+      </p>
+
+      <div class="hero-ctas">
+        <a href="#how" class="btn btn-primary">⚡ See How It Works</a>
+        <a href="#usecases" class="btn btn-outline">🏢 Applications</a>
+      </div>
+
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <div class="num" data-target="100">0</div>
+          <div class="label">Simulated Agents</div>
+        </div>
+        <div class="hero-divider"></div>
+        <div class="hero-stat">
+          <div class="num" data-target="50">0</div>
+          <div class="label">× 50 Grid World</div>
+        </div>
+        <div class="hero-divider"></div>
+        <div class="hero-stat">
+          <div class="num" data-target="10">0</div>
+          <div class="label">Steps / Second</div>
+        </div>
+        <div class="hero-divider"></div>
+        <div class="hero-stat">
+          <div class="num" data-target="9">0</div>
+          <div class="label">Agent Types</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero-img-wrap fade-in">
+      <img src="fire_simulation_hero_1774241966414.png"
+        alt="Fire Evacuation Simulation visualisation showing a building floorplan with fire spreading and agents evacuating"
+        loading="lazy" />
+      <div class="hero-img-overlay"></div>
+    </div>
+  </section>
+
+  <!-- ABOUT -->
+  <section id="about">
+    <div class="container">
+      <p class="section-tag">📖 Project Overview</p>
+      <h2>What Is This Project?</h2>
+      <p class="section-lead">We built a fully interactive, real-time simulation to study how people actually behave
+        during a fire — not just equations, but individual decisions by each person based on their own state of panic,
+        vision, and willingness to help others.</p>
+
+      <div class="about-grid">
+        <div class="about-card fade-in">
+          <div class="icon">🤖</div>
+          <h3>Agent-Based Modelling (ABM)</h3>
+          <p>Unlike traditional fire safety models that use averaged crowd equations, every person in our simulation is
+            a unique agent with their own health, speed, vision, nervousness and panic score. Emergent crowd behaviours
+            like bottlenecks and cascading panic arise naturally from the bottom up.</p>
+        </div>
+        <div class="about-card fade-in">
+          <div class="icon">⚡</div>
+          <h3>Real-Time Web Dashboard</h3>
+          <p>A live Next.js dashboard connected via WebSocket streams every grid state at 10 steps/second. You can watch
+            fire spread, smoke fill corridors, and agents make split-second decisions — all as it happens, with live
+            charts updating in real time.</p>
+        </div>
+        <div class="about-card fade-in">
+          <div class="icon">🧠</div>
+          <h3>Cognitive Agent Behaviours</h3>
+          <p>Each agent runs a full decision cycle: raycasting for vision, map learning, panic scoring via a
+            mathematical formula, and collaboration choices. They can verbally guide others to exits, physically carry
+            incapacitated victims, or provide morale support to reduce panic.</p>
+        </div>
+        <div class="about-card fade-in">
+          <div class="icon">🔬</div>
+          <h3>Science-Backed Parameters</h3>
+          <p>Vision distributions are sampled from WHO global visual impairment data. Alarm belief rates (90% initial
+            believers) reflect real-world fire drills research. Nervousness and experience attributes are distributed to
+            match human population variance.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section id="how">
+    <div class="container">
+      <p class="section-tag">⚙️ System Design</p>
+      <h2>How It Works</h2>
+      <p class="section-lead">A two-service architecture connected by a persistent WebSocket, delivering real-time
+        simulation state to the browser at 10 frames per second.</p>
+
+      <div class="pipeline fade-in">
+        <div class="pipeline-step">
+          <div class="step-num">1</div>
+          <div class="step-icon">🗺️</div>
+          <h4>Load Floorplan</h4>
+          <p>ASCII floorplan files define walls, doors, furniture, and exits in a 50×50 grid parsed by NumPy.</p>
+        </div>
+        <div class="pipeline-arrow">→</div>
+        <div class="pipeline-step">
+          <div class="step-num">2</div>
+          <div class="step-icon">🧩</div>
+          <h4>Spawn Agents</h4>
+          <p>Human agents are spawned with randomly sampled attributes — health, vision, speed, nervousness, and
+            collaboration tendency.</p>
+        </div>
+        <div class="pipeline-arrow">→</div>
+        <div class="pipeline-step">
+          <div class="step-num">3</div>
+          <div class="step-icon">🔥</div>
+          <h4>Fire Ignites</h4>
+          <p>Fire starts probabilistically and spreads to flammable furniture each tick. Smoke fills adjacent cells,
+            reducing vision and health.</p>
+        </div>
+        <div class="pipeline-arrow">→</div>
+        <div class="pipeline-step">
+          <div class="step-num">4</div>
+          <div class="step-icon">👁️</div>
+          <h4>Agents Perceive</h4>
+          <p>Each agent uses Bresenham's raycasting to see through smoke and around walls, learning the environment step
+            by step.</p>
+        </div>
+        <div class="pipeline-arrow">→</div>
+        <div class="pipeline-step">
+          <div class="step-num">5</div>
+          <div class="step-icon">🏃</div>
+          <h4>Decide & Act</h4>
+          <p>Agents compute their panic score, collaborate with others if safe, then navigate toward exits using
+            shortest-path (NetworkX).</p>
+        </div>
+        <div class="pipeline-arrow">→</div>
+        <div class="pipeline-step">
+          <div class="step-num">6</div>
+          <div class="step-icon">📡</div>
+          <h4>Stream to Browser</h4>
+          <p>FastAPI broadcasts the full grid state over WebSocket every 100ms. Next.js renders agents as layered images
+            in real time.</p>
+        </div>
+      </div>
+
+      <div class="arch-boxes fade-in">
+        <div class="arch-box">
+          <h4>🐍 Backend (Port 8000)</h4>
+          <ul>
+            <li>Python Mesa — ABM Framework</li>
+            <li>FastAPI — REST + WebSocket</li>
+            <li>NetworkX — Shortest path</li>
+            <li>NumPy — Grid parsing</li>
+            <li>Uvicorn — ASGI Server</li>
+          </ul>
+        </div>
+        <div class="arch-box">
+          <h4>🌐 Frontend (Port 3000)</h4>
+          <ul>
+            <li>Next.js 14 — App Router</li>
+            <li>TypeScript — Type safety</li>
+            <li>Recharts — Live line charts</li>
+            <li>WebSocket hook — State sync</li>
+            <li>CSS grid — 3-panel layout</li>
+          </ul>
+        </div>
+        <div class="arch-box">
+          <h4>🔁 Data Transport</h4>
+          <ul>
+            <li>WebSocket — Persistent channel</li>
+            <li>JSON commands → init, step, play</li>
+            <li>JSON state → agents, stats</li>
+            <li>10 steps/second auto-loop</li>
+            <li>REST — Floorplan discovery</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- AGENTS -->
+  <section id="agents">
+    <div class="container">
+      <p class="section-tag">🧬 Agent Types</p>
+      <h2>Meet the Agents</h2>
+      <p class="section-lead">Nine distinct agent types inhabit the simulation, each with different properties,
+        behaviours, and interactions.</p>
+
+      <div class="agents-grid fade-in">
+        <div class="agent-card human">
+          <div class="agent-emoji">🧍</div>
+          <h4>Human (Normal)</h4>
+          <p>Navigates toward exit using shortest path. Has full control of speed and direction.</p>
+          <span class="agent-badge b-alive">Alive</span>
+        </div>
+        <div class="agent-card human">
+          <div class="agent-emoji">😨</div>
+          <h4>Human (Panic)</h4>
+          <p>Panic score ≥ 0.8 — forgets all learned map and moves erratically.</p>
+          <span class="agent-badge b-fire">Panic</span>
+        </div>
+        <div class="agent-card human">
+          <div class="agent-emoji">🚶</div>
+          <h4>Human (Incapacitated)</h4>
+          <p>Speed has dropped to 0 — can only be rescued by a collaborating agent.</p>
+          <span class="agent-badge b-purple">Incapacitated</span>
+        </div>
+        <div class="agent-card collab">
+          <div class="agent-emoji">🤝</div>
+          <h4>Collaborator</h4>
+          <p>Broadcasts exits verbally, physically carries victims, and calms panicking neighbours.</p>
+          <span class="agent-badge b-purple">Helper</span>
+        </div>
+        <div class="agent-card fire">
+          <div class="agent-emoji">🔥</div>
+          <h4>Fire</h4>
+          <p>Spreads to adjacent flammable agents (furniture, dead humans) each tick.</p>
+          <span class="agent-badge b-fire">Hazard</span>
+        </div>
+        <div class="agent-card smoke">
+          <div class="agent-emoji">💨</div>
+          <h4>Smoke</h4>
+          <p>Reduces visibility along raycasting paths and drains health at 0.005 per step.</p>
+          <span class="agent-badge b-smoke">Hazard</span>
+        </div>
+        <div class="agent-card exit">
+          <div class="agent-emoji">🚪</div>
+          <h4>Fire Exit</h4>
+          <p>High-visibility (range=6) tiles that remove agents from the simulation upon entry.</p>
+          <span class="agent-badge b-exit">Safe Zone</span>
+        </div>
+        <div class="agent-card">
+          <div class="agent-emoji">🪑</div>
+          <h4>Furniture</h4>
+          <p>Flammable, non-traversable obstacles that serve as fuel for fire propagation.</p>
+          <span class="agent-badge b-amber">Obstacle</span>
+        </div>
+        <div class="agent-card">
+          <div class="agent-emoji">💀</div>
+          <h4>Dead Human</h4>
+          <p>Left when health = 0. Causes shock in nearby living agents, flammable.</p>
+          <span class="agent-badge b-fire">Dead</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS BANNER -->
+  <div id="stats-banner">
+    <div class="container">
+      <div class="stats-row">
+        <div class="stat-block">
+          <div class="big">100+</div>
+          <div class="lbl">Max Concurrent Agents</div>
+        </div>
+        <div class="stat-block">
+          <div class="big">3</div>
+          <div class="lbl">Collaboration Types</div>
+        </div>
+        <div class="stat-block">
+          <div class="big">0.8</div>
+          <div class="lbl">Panic Threshold</div>
+        </div>
+        <div class="stat-block">
+          <div class="big">4</div>
+          <div class="lbl">Floorplan Layouts</div>
+        </div>
+        <div class="stat-block">
+          <div class="big">~100K</div>
+          <div class="lbl">LRU-Cached Raycasts</div>
+        </div>
+        <div class="stat-block">
+          <div class="big">10/s</div>
+          <div class="lbl">Simulation Frame Rate</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TECH STACK -->
+  <section id="tech">
+    <div class="container">
+      <p class="section-tag">🛠️ Technology Stack</p>
+      <h2>Built With Modern Tech</h2>
+      <p class="section-lead">A carefully chosen stack that delivers performance, real-time responsiveness, and clean
+        architecture.</p>
+
+      <div class="tech-grid fade-in">
+        <div class="tech-card">
+          <div class="tech-icon">🐍</div>
+          <h4>Python 3.12</h4>
+          <p>Simulation engine</p>
+        </div>
+        <div class="tech-card">
+          <div class="tech-icon">🤖</div>
+          <h4>Mesa ≥ 3.0</h4>
+          <p>ABM framework</p>
+        </div>
+        <div class="tech-card">
+          <div class="tech-icon">⚡</div>
+          <h4>FastAPI</h4>
+          <p>Async API server</p>
+        </div>
+        <div class="tech-card">
+          <div class="tech-icon">🔌</div>
+          <h4>WebSocket</h4>
+          <p>Real-time transport</p>
+        </div>
+        <div class="tech-card">
+          <div class="tech-icon">🌐</div>
+          <h4>Next.js 14</h4>
+          <p>React front-end</p>
+        </div>
+        <div class="tech-card">
+          <div class="tech-icon">📊</div>
+          <h4>Recharts</h4>
+          <p>Live chart engine</p>
+        </div>
+        <div class="tech-card">
+          <div class="tech-icon">🗺️</div>
+          <h4>NetworkX</h4>
+          <p>Pathfinding graphs</p>
+        </div>
+        <div class="tech-card">
+          <div class="tech-icon">🔢</div>
+          <h4>NumPy</h4>
+          <p>Grid computation</p>
+        </div>
+        <div class="tech-card">
+          <div class="tech-icon">📐</div>
+          <h4>TypeScript</h4>
+          <p>Type-safe UI code</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- USE CASES -->
+  <section id="usecases">
+    <div class="container">
+      <p class="section-tag">🏢 Real-World Applications</p>
+      <h2>Where It Will Be Used</h2>
+      <p class="section-lead">FireSim is not just a demo — it is a foundation technology that can be applied across
+        safety-critical industries.</p>
+
+      <div class="usecases-grid fade-in">
+        <div class="usecase-card">
+          <div class="usecase-icon">🏗️</div>
+          <h3>Building Safety Design</h3>
+          <p>Architects and civil engineers can test evacuation routes before a building is constructed. Simulate how
+            exit placement, corridor width, and door positions affect survival rates under various fire scenarios.</p>
+        </div>
+        <div class="usecase-card">
+          <div class="usecase-icon">🏫</div>
+          <h3>Schools & Universities</h3>
+          <p>Educational institutions can test their fire drill protocols digitally. Compare different alarm strategies
+            and measure how many students can safely evacuate from crowded lecture halls.</p>
+        </div>
+        <div class="usecase-card">
+          <div class="usecase-icon">🏭</div>
+          <h3>Industrial Facilities</h3>
+          <p>Factories and warehouses with flammable materials can use the system to identify high-risk zones, optimise
+            wardens' routes, and comply with industrial fire safety regulations.</p>
+        </div>
+        <div class="usecase-card">
+          <div class="usecase-icon">🏥</div>
+          <h3>Hospitals & Care Homes</h3>
+          <p>Model evacuations of patients with mobility limitations. The incapacitated agent and physical-carry
+            collaboration mechanic directly reflects the real challenge of non-ambulatory occupants.</p>
+        </div>
+        <div class="usecase-card">
+          <div class="usecase-icon">🚒</div>
+          <h3>Fire Department Training</h3>
+          <p>Use as a training visualisation tool to show firefighters how fire and smoke spread over time, where
+            victims are likely to be found, and how to prioritise rescue routes.</p>
+        </div>
+        <div class="usecase-card">
+          <div class="usecase-icon">🔬</div>
+          <h3>Academic Research</h3>
+          <p>A ready framework for studying crowd psychology and panic contagion in emergencies. Researchers can modify
+            agent decision formulas, collaboration probabilities, and test new behavioural theories.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FUTURE IMPLEMENTATIONS -->
+  <section id="future">
+    <div class="container">
+      <p class="section-tag">🚀 Future Roadmap</p>
+      <h2>Where We're Taking This</h2>
+      <p class="section-lead">The current simulation is the foundation. These are the next phases that will transform
+        FireSim into a professional-grade safety platform.</p>
+
+      <div class="future-list fade-in">
+        <div class="future-item ai">
+          <div class="fi-icon">🧠</div>
+          <div>
+            <div class="fi-tag tag-purple">AI / ML</div>
+            <h4>Reinforcement Learning for Optimal Exit Design</h4>
+            <p>Train an RL agent to discover the statistically optimal placement of exits and fire wardens for any given
+              floorplan, minimising expected casualties across thousands of simulated fire scenarios.</p>
+          </div>
+        </div>
+        <div class="future-item iot">
+          <div class="fi-icon">📡</div>
+          <div>
+            <div class="fi-tag tag-blue">IoT Integration</div>
+            <h4>Live Sensor Data Feed</h4>
+            <p>Connect real IoT smoke sensors and fire alarm systems to the simulation. When a real sensor fires, the
+              corresponding grid cell ignites — turning the simulation into a live, data-driven digital twin of the
+              actual building.</p>
+          </div>
+        </div>
+        <div class="future-item vr">
+          <div class="fi-icon">🥽</div>
+          <div>
+            <div class="fi-tag tag-fire">Immersive Tech</div>
+            <h4>3D / VR Evacuation Training</h4>
+            <p>Upgrade the simulation grid to a 3D multi-floor building rendered in Three.js or Unity. First-responders
+              and facility managers can walk through a virtual evacuation in real time using VR headsets.</p>
+          </div>
+        </div>
+        <div class="future-item ml">
+          <div class="fi-icon">📊</div>
+          <div>
+            <div class="fi-tag tag-green">Analytics</div>
+            <h4>Statistical Report Generator</h4>
+            <p>Automatically run Monte Carlo simulations across hundreds of random scenarios and generate detailed PDF
+              safety reports — showing survival probability curves, bottleneck heatmaps, and collaboration effectiveness
+              scores.</p>
+          </div>
+        </div>
+        <div class="future-item">
+          <div class="fi-icon" style="background:rgba(255,179,71,0.1)">🌏</div>
+          <div>
+            <div class="fi-tag tag-amber">Multi-Floor</div>
+            <h4>Multi-Floor & Multi-Building Support</h4>
+            <p>Extend the floorplan system to support stairwells, elevators, and multi-storey buildings. Critical for
+              high-rise office or residential tower safety simulation where vertical evacuation dynamics matter most.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SOCIAL RELEVANCE -->
+  <section id="social">
+    <div class="container">
+      <p class="section-tag">🌍 Social Relevance</p>
+      <h2>Why This Matters</h2>
+      <p class="section-lead">Fire is one of the deadliest preventable emergencies. Technology like this saves lives.
+      </p>
+
+      <div class="social-grid fade-in">
+        <div class="social-card sdg">
+          <div class="sc-icon">🎯</div>
+          <h3>UN SDG 11 — Sustainable Cities</h3>
+          <p>Our project directly supports the United Nations Sustainable Development Goal 11: making cities and human
+            settlements inclusive, safe, resilient, and sustainable. Better fire simulation means better-designed safe
+            buildings for everyone.</p>
+        </div>
+        <div class="social-card lives">
+          <div class="sc-icon">❤️</div>
+          <h3>Saving Lives Through Preparedness</h3>
+          <p>Approximately 180,000 people die in fire-related incidents globally every year (WHO). Most deaths are
+            preventable with better evacuation planning. FireSim gives safety planners a free, data-driven tool to find
+            weaknesses before a real fire does.</p>
+        </div>
+        <div class="social-card edu">
+          <div class="sc-icon">🎓</div>
+          <h3>Open-Access Safety Education</h3>
+          <p>By building an open-source, visual, interactive simulation, we democratise access to fire safety research.
+            Schools, NGOs, and under-resourced municipalities can use this system to train without expensive proprietary
+            enterprise software.</p>
+        </div>
+        <div class="social-card data">
+          <div class="sc-icon">📈</div>
+          <h3>Evidence-Based Policy Making</h3>
+          <p>Local governments and fire marshals can use simulation data to create better building codes. Instead of
+            relying on historical fire statistics alone, planners can proactively test proposed building layouts before
+            granting permits.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section id="cta">
+    <div class="container">
+      <h2>Ready to See It <span
+          style="background:linear-gradient(135deg,var(--fire),var(--amber));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Live?</span>
+      </h2>
+      <p>Watch 100 intelligent agents navigate smoke-filled corridors, carry injured colleagues, and race to safety —
+        all in real time on your browser.</p>
+      <div class="hero-ctas">
+        <a href="#how" class="btn btn-primary">🔥 Watch the Demo</a>
+        <a href="#social" class="btn btn-outline">🌍 Social Impact</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- TEAM -->
+  <section id="team">
+    <div class="container" style="text-align:center">
+      <p class="section-tag" style="display:block;text-align:center">👥 Built By</p>
+      <h2 style="margin-bottom:2.5rem">The Team</h2>
+      <div class="team-grid">
+        <div class="team-card">
+          <div class="team-avatar">👨‍💻</div>
+          <h4>Nivin Louis</h4>
+          <p>Full-Stack & Simulation</p>
+        </div>
+      </div>
+      <p style="margin-top:2rem;color:var(--muted);font-size:0.85rem;">Presented at <span
+          style="color:var(--fire-glow);font-weight:600">Innofest 2026</span> &nbsp;·&nbsp; March 2026</p>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <p>🔥 <span>FireSim</span> — Real-Time Fire Evacuation Simulation &nbsp;·&nbsp; Built with Python Mesa · FastAPI ·
+      Next.js &nbsp;·&nbsp; <span>Innofest 2026</span></p>
+  </footer>
+
+  <script>
+    // ── Intersection Observer for fade-in ──
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); }
+      });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+    // ── Counter animation ──
+    function animateCounter(el) {
+      const target = parseInt(el.dataset.target, 10);
+      let current = 0;
+      const duration = 1200;
+      const step = target / (duration / 16);
+      const timer = setInterval(() => {
+        current = Math.min(current + step, target);
+        el.textContent = Math.round(current);
+        if (current >= target) clearInterval(timer);
+      }, 16);
+    }
+    const counterObserver = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          animateCounter(e.target);
+          counterObserver.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.5 });
+    document.querySelectorAll('[data-target]').forEach(el => counterObserver.observe(el));
+
+    // ── Floating fire particles ──
+    const particlesContainer = document.getElementById('particles');
+    const colors = ['#ff4d00', '#ff7a00', '#ffb347', '#ff2200'];
+    for (let i = 0; i < 30; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      const size = Math.random() * 6 + 3;
+      p.style.cssText = `
+        width:${size}px; height:${size}px;
+        left:${Math.random() * 100}%;
+        top:${Math.random() * 100}%;
+        background:${colors[Math.floor(Math.random() * colors.length)]};
+        animation-duration:${Math.random() * 4 + 3}s;
+        animation-delay:${Math.random() * 5}s;
+        filter:blur(${Math.random() * 2}px);
+      `;
+      particlesContainer.appendChild(p);
+    }
+
+    // ── Smooth nav highlight on scroll ──
+    const sections = document.querySelectorAll('section[id], div[id]');
+    const navLinks = document.querySelectorAll('.nav-links a');
+    window.addEventListener('scroll', () => {
+      let current = '';
+      sections.forEach(s => {
+        if (window.scrollY >= s.offsetTop - 100) current = s.id;
+      });
+      navLinks.forEach(a => {
+        a.style.color = a.getAttribute('href') === `#${current}` ? 'var(--fire-glow)' : '';
+      });
+    });
+  </script>
+</body>
+
+</html>

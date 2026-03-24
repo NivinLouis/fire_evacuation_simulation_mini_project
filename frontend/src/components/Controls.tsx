@@ -7,9 +7,10 @@ interface Props {
   isPlaying: boolean;
   onTogglePlay: () => void;
   onStep: () => void;
+  gameState?: any;
 }
 
-export default function Controls({ onInit, isPlaying, onTogglePlay, onStep }: Props) {
+export default function Controls({ onInit, isPlaying, onTogglePlay, onStep, gameState }: Props) {
   const [floorplans, setFloorplans] = useState<string[]>([]);
   
   const [params, setParams] = useState({
@@ -21,6 +22,53 @@ export default function Controls({ onInit, isPlaying, onTogglePlay, onStep }: Pr
     random_spawn: true,
     save_plots: false,
   });
+
+  const [isDemoMode, setIsDemoMode] = useState(false);
+  const [demoCountdown, setDemoCountdown] = useState<number | null>(null);
+
+  // Demo Mode loop logic
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (isDemoMode) {
+      if (!isPlaying && !gameState?.running) {
+        if (demoCountdown === null) {
+          setDemoCountdown(5);
+        } else if (demoCountdown > 0) {
+          timer = setTimeout(() => setDemoCountdown(demoCountdown - 1), 1000);
+        } else if (demoCountdown === 0) {
+          setDemoCountdown(null);
+          if (floorplans.length > 0) {
+            const randomHumans = Math.floor(Math.random() * 20) + 10; // Between 10 and 29 agents
+            const randomCollaboration = Math.floor(Math.random() * 11) * 10;
+            const randomFireProb = Math.floor(Math.random() * 20 + 5) / 100;
+            
+            setParams((prev) => {
+              const newParams = {
+                ...prev,
+                human_count: randomHumans,
+                collaboration_percentage: randomCollaboration,
+                fire_probability: randomFireProb,
+                random_spawn: true,
+              };
+              // Wait for React to update state, but immediately trigger init with new params
+              onInit(newParams);
+              return newParams;
+            });
+            
+            // Allow time for init before hitting play
+            setTimeout(() => {
+              onTogglePlay();
+            }, 800);
+          }
+        }
+      } else {
+        if (demoCountdown !== null) setDemoCountdown(null);
+      }
+    } else {
+      if (demoCountdown !== null) setDemoCountdown(null);
+    }
+    return () => clearTimeout(timer);
+  }, [isDemoMode, isPlaying, gameState?.running, demoCountdown, floorplans, onInit, onTogglePlay]);
 
   // Fetch available floorplans from the Python API on mount
   useEffect(() => {
@@ -56,7 +104,25 @@ export default function Controls({ onInit, isPlaying, onTogglePlay, onStep }: Pr
 
   return (
     <div className="flex flex-col gap-5 w-full">
-      <h2 className="text-lg font-bold text-slate-800 border-b border-slate-200 pb-2">Parameters</h2>
+      <h2 className="text-lg font-bold text-slate-800 border-b border-slate-200 pb-2 flex justify-between items-center">
+        <span>Parameters</span>
+        <div className="flex items-center gap-2">
+          <label htmlFor="demo_mode" className="text-sm font-bold text-indigo-600 cursor-pointer" onClick={() => setIsDemoMode(!isDemoMode)}>
+            Demo Mode
+          </label>
+          <input 
+            type="checkbox" id="demo_mode" 
+            checked={isDemoMode} onChange={() => setIsDemoMode(!isDemoMode)}
+            className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer"
+          />
+        </div>
+      </h2>
+
+      {isDemoMode && demoCountdown !== null && (
+        <div className="bg-indigo-50 border border-indigo-200 text-indigo-700 px-3 py-2 rounded-lg text-sm font-medium text-center animate-pulse">
+          Next demo starting in {demoCountdown}s...
+        </div>
+      )}
       
       {/* Dynamic Dropdown for Floorplans */}
       <div className="flex flex-col gap-1">
